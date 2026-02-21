@@ -45,6 +45,10 @@ class _GenUiPocPageState extends State<GenUiPocPage> {
   String? _pendingSurfaceId;
   Timer? _surfaceDebounceTimer;
   static const _surfaceDebounceDuration = Duration(milliseconds: 150);
+  static const _loadingTimeout = Duration(seconds: 45);
+  bool _isLoading = false;
+  StreamSubscription<Object?>? _submitSubscription;
+  Timer? _loadingTimeoutTimer;
 
   @override
   void initState() {
@@ -75,7 +79,30 @@ When showing multiple buttons or choices, always put clear spacing (margin/gap) 
       contentGenerator: contentGenerator,
       a2uiMessageProcessor: _messageProcessor,
       onSurfaceAdded: _onSurfaceAdded,
+      onSurfaceUpdated: _onSurfaceUpdated,
     );
+
+    // Show loading when user taps a GenUI button (request sent via onSubmit).
+    _submitSubscription = _messageProcessor.onSubmit.listen((_) {
+      if (mounted) _setLoading(true);
+    });
+  }
+
+  void _setLoading(bool value) {
+    if (value) {
+      _loadingTimeoutTimer?.cancel();
+      _loadingTimeoutTimer = Timer(_loadingTimeout, () {
+        _loadingTimeoutTimer = null;
+        _clearLoading(); // Safety: never leave user stuck behind loader
+      });
+    }
+    if (mounted) setState(() => _isLoading = value);
+  }
+
+  void _clearLoading() {
+    _loadingTimeoutTimer?.cancel();
+    _loadingTimeoutTimer = null;
+    if (mounted && _isLoading) setState(() => _isLoading = false);
   }
 
   void _onSurfaceAdded(SurfaceAdded update) {
@@ -94,13 +121,22 @@ When showing multiple buttons or choices, always put clear spacing (margin/gap) 
         _surfaceIds.clear();
         _surfaceIds.add(id);
       });
+      _clearLoading();
     });
+  }
+
+  void _onSurfaceUpdated(SurfaceUpdated update) {
+    // Response sometimes updates the same surface (e.g. job recommendation).
+    // Clear loading and refresh so the UI shows the new content.
+    _clearLoading();
+    if (mounted) setState(() {});
   }
 
   void _send() {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
+    _setLoading(true);
     _conversation.sendRequest(UserMessage.text(text));
     _textController.clear();
   }
@@ -108,6 +144,8 @@ When showing multiple buttons or choices, always put clear spacing (margin/gap) 
   @override
   void dispose() {
     _surfaceDebounceTimer?.cancel();
+    _loadingTimeoutTimer?.cancel();
+    _submitSubscription?.cancel();
     _listScrollController.dispose();
     _textController.dispose();
     _conversation.dispose();
@@ -118,10 +156,12 @@ When showing multiple buttons or choices, always put clear spacing (margin/gap) 
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('GenUI Army Career POC')),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: Scrollbar(
+          Column(
+            children: [
+              Expanded(
+                child: Scrollbar(
               controller: _listScrollController,
               thumbVisibility: true,
               child: ListView.builder(
@@ -167,6 +207,35 @@ When showing multiple buttons or choices, always put clear spacing (margin/gap) 
               ),
             ),
           ),
+            ],
+          ),
+          if (_isLoading)
+            Positioned.fill(
+              child: ModalBarrier(
+                color: Colors.black26,
+                dismissible: false,
+              ),
+            ),
+          if (_isLoading)
+            const Center(
+              child: Card(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: CircularProgressIndicator(strokeWidth: 3),
+                      ),
+                      SizedBox(height: 16),
+                      Text('Loading…'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
