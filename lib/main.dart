@@ -40,6 +40,7 @@ class _GenUiPocPageState extends State<GenUiPocPage> {
   late final GenUiConversation _conversation;
 
   final _textController = TextEditingController();
+  final _listScrollController = ScrollController();
   final _surfaceIds = <String>[];
   String? _pendingSurfaceId;
   Timer? _surfaceDebounceTimer;
@@ -107,6 +108,7 @@ When showing multiple buttons or choices, always put clear spacing (margin/gap) 
   @override
   void dispose() {
     _surfaceDebounceTimer?.cancel();
+    _listScrollController.dispose();
     _textController.dispose();
     _conversation.dispose();
     super.dispose();
@@ -119,22 +121,29 @@ When showing multiple buttons or choices, always put clear spacing (margin/gap) 
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _surfaceIds.length,
-              itemBuilder: (context, index) {
-                final id = _surfaceIds[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: SizedBox(
-                    height: 320,
-                    child: GenUiSurface(
-                      host: _conversation.host,
-                      surfaceId: id,
+            child: Scrollbar(
+              controller: _listScrollController,
+              thumbVisibility: true,
+              child: ListView.builder(
+                controller: _listScrollController,
+                padding: const EdgeInsets.all(12),
+                itemCount: _surfaceIds.length,
+                itemBuilder: (context, index) {
+                  final id = _surfaceIds[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: SizedBox(
+                      height: 320,
+                      child: SingleChildScrollView(
+                        child: GenUiSurface(
+                          host: _conversation.host,
+                          surfaceId: id,
+                        ),
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
           const Divider(height: 1),
