@@ -72,6 +72,8 @@ Goal: help the user narrow down Army careers based on interests, strengths, and 
 Prefer producing interactive UI (cards, buttons, lists) instead of long text.
 Ask 1 short question at a time, then refine recommendations.
 When showing multiple buttons or choices, always put clear spacing (margin/gap) between each button so they do not touch.
+
+For questions where the answer is on a range or scale, use the agreementScale component instead of multiple buttons or multiple choice. Examples: level of agreement (strongly disagree … strongly agree), frequency (never … always), interest level (not at all … extremely). Provide the "question" text and an "options" array of labels from one end of the scale to the other (e.g. ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"]). Use agreementScale whenever a single scale fits the question better than several separate buttons.
 ''',
     );
 
